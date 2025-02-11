@@ -1,3 +1,5 @@
+// Deprecated: This file is no longer maintained. The shadow when dragging is abandoned
+
 import { animate, MotionValue, useMotionValue } from "framer-motion";
 import { useEffect } from "react";
 

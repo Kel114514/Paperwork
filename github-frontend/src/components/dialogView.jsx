@@ -15,24 +15,36 @@ import { FiImage } from "react-icons/fi";
 import { GrMicrophone } from "react-icons/gr";
 import AvatarUser from "/user-avatar.svg"
 import AvatarAI from "/ai-avatar.svg"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar"
 
-export default function DialogView({title, model, initialDialogs}) {
-  const [dialogs, setDialogs] = useState(initialDialogs);
+export default function DialogView({title, model, dialogs, setDialogs, handleHome, papers, setPapers, firstSelectTrigger}) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentText, setCurrentText] = useState("");
-  const [usePaperRef, setUserPaperRef] = useState(true);
+  const [usePaperRef, setUserPaperRef] = useState(false);
   const [useAugSearch, setUserAugSearch] = useState(false);
 
   useEffect(() => {
     const targetDiv = document.getElementById("loadingText");
-    let dotCount = 0;
-    const interval = setInterval(() => {
-      dotCount = (dotCount + 1) % 4;
-      targetDiv.innerHTML = `Analysing Articles${".".repeat(dotCount)}`;
-    }, 300);
-    return () => clearInterval(interval);
+    if (targetDiv !== null) {
+      let dotCount = 0;
+      const interval = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        targetDiv.innerHTML = `Analysing Articles${".".repeat(dotCount)}`;
+      }, 300);
+      return () => clearInterval(interval);
+    }
   }, [isLoading]);
+
+  useEffect(() => {
+    if (firstSelectTrigger) {
+      setUserPaperRef(true);
+    }
+  }, [firstSelectTrigger]);
 
   // Handle sending a new message
   const handleSendMessage = async () => {
@@ -61,6 +73,10 @@ export default function DialogView({title, model, initialDialogs}) {
     }
   };
 
+  const filterSelectedPapers = () => {
+    return papers.filter(paper => paper.selected === true);
+  }
+
   // Placeholder for AI response (simulated for now)
   const fetchAIResponse = async (userMessage) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -81,9 +97,11 @@ export default function DialogView({title, model, initialDialogs}) {
   };
 
   return (
-    <div className="flex flex-col bg-[url('/bg-left.svg')] rounded-lg border border-color-border-2 h-[90vh] w-full drop-shadow-sm">
-      <div className="flex-1 rounded-lg">
-        <div className="flex flex-row items-center justify-center bg-white p-2 py-4 space-x-3 rounded-t-lg">
+    <div className="flex flex-col bg-gradient-to-b from-[#f7f8fa] via-[#f6f7fa] to-[#eef0fa] rounded-lg border border-color-border-2 h-[90vh] w-full"
+      style={{ boxShadow: '0 3px 3px rgb(0, 0, 0, 0.12)' }}
+    >
+      <div className="relative flex-1 rounded-lg">
+        <div className="flex flex-row items-center justify-center bg-white p-2 py-4 space-x-3 rounded-t-lg border-b border-color-border-2">
             <h1 className="font-inter font-medium text-base">{title}</h1>
             <div className="font-inter font-medium text-xs text-darker-blue rounded-md tagShadow py-1 px-2 bg-color-bg-1">{model}</div>
         </div>
@@ -92,7 +110,11 @@ export default function DialogView({title, model, initialDialogs}) {
             {dialogs.map((dialog, index) => (
                 dialog.sender == "user" ? (
                     <div className="flex flex-row items-start justify-start w-full space-x-3 px-6">
-                      <img src={AvatarUser} alt="" className="select-none pointer-events-none pt-1 size-8" />
+                      {/* <img src={AvatarUser} alt="" className="select-none pointer-events-none pt-1 size-8" /> */}
+                      <Avatar className="select-none pointer-events-none size-8">
+                        <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
+                        <AvatarFallback>CN</AvatarFallback>
+                      </Avatar>
                       <div className="flex flex-col">
                         <div className="flex flex-row items-center justify-start space-x-4">
                           <h1 className="text-[0.9rem] font-inter font-medium">{"Researcher"}</h1>
@@ -102,7 +124,7 @@ export default function DialogView({title, model, initialDialogs}) {
                       </div>
                     </div>
                 ) : (
-                  <div className="flex flex-col space-y-2 px-2 py-4 m-6 bg-white drop-shadow-sm border border-color-border-2 rounded-xl">
+                  <div className="flex flex-col space-y-2 px-2 py-4 mx-6 my-4 bg-white drop-shadow-sm border border-color-border-2 rounded-xl">
                     <div className="flex flex-row items-start justify-start w-full space-x-3 px-3 py-1">
                       <img src={AvatarAI} alt="" className="select-none pointer-events-none pt-1 size-8" />
                       <div className="flex flex-col">
@@ -137,10 +159,10 @@ export default function DialogView({title, model, initialDialogs}) {
               </div>
             )}
         </div>
-      </div>
+
 
       {/* Input area */}
-      <div className="absolute bottom-0 w-[96.5%] flex flex-col items-center m-4 p-2 pt-3 rounded-xl border bg-white border-color-border-2 h-40 drop-shadow-sm">
+      <div className="absolute left-0 right-0 m-auto bottom-4 w-[96.5%] flex flex-col items-center p-2 pt-3 rounded-xl border bg-white border-color-border-2 h-40 drop-shadow-md">
         <textarea 
           type="text"
           value={input}
@@ -151,7 +173,9 @@ export default function DialogView({title, model, initialDialogs}) {
         />
         <div className="flex flex-row items-center justify-between w-full p-2 pr-1 pb-1">
           <div className="flex flex-row space-x-4">
-            <div className="flex flex-row font-inter font-medium text-xs text-darker-blue rounded-md tagShadow py-1 px-2 bg-color-bg-1 space-x-1 items-center justify-center">
+            <div className="cursor-pointer flex flex-row font-inter font-medium text-xs text-darker-blue rounded-md tagShadow py-1 px-2 bg-color-bg-1 space-x-1 items-center justify-center hover:drop-shadow-sm"
+              onClick={() => {handleHome(true);}}
+            >
               <FiBook size={16} color="#19213D"/>
               <h1>Library</h1>
             </div>
@@ -166,11 +190,11 @@ export default function DialogView({title, model, initialDialogs}) {
             <label className="flex items-center space-x-2">
               <Switch 
                 checked={usePaperRef} 
-                onCheckedChange={setUserPaperRef} 
+                onCheckedChange={setUserPaperRef}
               />
               <span className="text-xs">Ask Selected Papers</span>
             </label>
-            <label className="flex items-center space-x-2">
+            <label className="items-center space-x-2 hidden xl:flex">
               <Switch 
                 checked={useAugSearch} 
                 onCheckedChange={setUserAugSearch} 
@@ -182,5 +206,6 @@ export default function DialogView({title, model, initialDialogs}) {
         </div>
       </div>
     </div>
+  </div>
   );
 }
