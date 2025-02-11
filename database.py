@@ -125,6 +125,11 @@ def search_database(query: str, max_results=5) -> list[Paper]:
 
 
 def rerank_papers(query: str, papers: list[Paper], max_results=None) -> list[Paper]:
+    '''
+    Rerank the papers based on the query
+    Paper list may include old and new papers in any order
+    max_results: default to be the length of papers (select all)
+    '''
     if max_results is None:
         max_results = len(papers)
     documents = [{'text': p.summary} for p in papers]
@@ -138,6 +143,6 @@ def rerank_papers(query: str, papers: list[Paper], max_results=None) -> list[Pap
     )
 
     reranked_index = [i['index'] for i in result.data]
-    print('Token usage for embedding: ', result.usage, sep='')
+    print('Token usage for reranking: ', result.usage, sep='')
     return [papers[i] for i in reranked_index]
 
