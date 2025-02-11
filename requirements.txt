@@ -1,0 +1,8 @@
+arxiv
+pinecone-client
+python-dotenv
+openai
+Flask
+sentence-transformers
+faiss-cpu
+numpy
