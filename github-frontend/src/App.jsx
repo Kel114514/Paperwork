@@ -15,6 +15,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { searchAPI } from "./components/backendHandler";
 
 function App() {
   const title = "Papers related to CNN"
@@ -118,6 +119,19 @@ function App() {
     setHome(false);
     console.log("pressed");
   };
+
+  // Demo paper searching function
+  const handleSearch = (query) => {
+    console.log("Searching for: " + query);
+    searchAPI(query).then((data) => {
+      console.log(data);
+    });
+  }
+
+  // Run the search function on startup
+  useEffect(() => {
+    handleSearch("Keyword");
+  }, []);
 
   return (
     <main className="flex flex-col min-h-screen min-w-screen bg-[#F7F8FA] overflow-hidden">

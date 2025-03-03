@@ -169,3 +169,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# ignore the node_modules folder under the frontend folder
+github-frontend/node_modules/
