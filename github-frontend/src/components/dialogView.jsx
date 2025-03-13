@@ -21,6 +21,8 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 
+import { searchAPI, similarAPI, generateSurveyAPI, chatAPI } from "./backendHandler";
+
 export default function DialogView({title, model, dialogs, setDialogs, handleHome, papers, setPapers, firstSelectTrigger}) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -66,7 +68,8 @@ export default function DialogView({title, model, dialogs, setDialogs, handleHom
       console.error("Error fetching AI response:", error);
       setDialogs((prevDialogs) => [
         ...prevDialogs,
-        { text: "Sorry, I didn't understand that.", sender: "ai" },
+        // { text: "Sorry, I didn't understand that.", sender: "ai" },
+        { text: "Fethcing AI response failed.", sender: "ai" },
       ]);
     } finally {
       setIsLoading(false);
@@ -79,8 +82,14 @@ export default function DialogView({title, model, dialogs, setDialogs, handleHom
 
   // Placeholder for AI response (simulated for now)
   const fetchAIResponse = async (userMessage) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return `AI Response to: ${userMessage}`;
+    // await new Promise((resolve) => setTimeout(resolve, 1000));
+    // return `AI Response to: ${userMessage}`;
+
+    // Use the chat API to get the AI response
+    console.log("Fetching AI response for:", userMessage);
+    const response = await chatAPI(userMessage);
+    console.log("AI response:", response);
+    return response;
   };
 
   // Simulate the typing effect for AI response

@@ -120,11 +120,30 @@ function App() {
     console.log("pressed");
   };
 
+  // Helper function to convert search query to dialog
+  const searchToDialog = (query) => {
+    const moment = new Date();
+    const time = moment.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    const newDialog = { id: 1, sender: 'user', time: time, text: query };
+    const newAiResponse = { id: 2, sender: 'ai', time: time, text: 'Searching for ' + query + '...' };
+    return [newDialog, newAiResponse];
+  };
+
   // Demo paper searching function
   const handleSearch = (query) => {
     console.log("Searching for: " + query);
+
+    // update the dialog with the search query, and clear the previous search results
+    const SearchDialog = searchToDialog(query);
+    setDialogs(SearchDialog);
+
+    // Clear the previous search results temporarily
+    setPapers([]);
+
     searchAPI(query).then((data) => {
       console.log(data);
+      // Change the papers to the search results
+      setPapers(data);
     });
   }
 

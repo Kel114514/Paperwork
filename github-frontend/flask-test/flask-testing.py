@@ -51,7 +51,14 @@ def similar():
 
 @app.route('/generate-survey', methods=['POST'])
 def generate_survey():
-    return jsonify({'survey': 'survey response'})
+    query = request.json.get('query')
+    return jsonify({'survey': 'Testing backend survey response for: ' + query})
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    query = request.json.get('query')
+    print(f'Chatting with query: {query}')
+    return jsonify({'response': 'Testing backend chat response for: ' + query})
 
 if __name__ == '__main__':
     app.run(debug=True)
