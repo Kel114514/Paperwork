@@ -10,12 +10,15 @@ import BackChatButton from "/back-to-chat.svg"
 import { AnimatePresence, motion } from "framer-motion";
 import { FiHome } from "react-icons/fi";
 import { FiBook } from "react-icons/fi";
+import { FaPaperPlane } from "react-icons/fa";
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/components/ui/avatar"
+import { ButtonBlue } from "@/components/ui/buttonBlue"
 import { searchAPI } from "./components/backendHandler";
+import { FiPaperclip, FiImage } from "react-icons/fi";
 
 function App() {
   const title = "Papers related to CNN"
@@ -95,6 +98,15 @@ function App() {
   const [firstSelectTrigger, setFirstSelectTrigger] = useState(false);
   const [isAnimating, setIsAnimating] = useState(true);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [isFirstQuestion, setIsFirstQuestion] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const presetQuestions = [
+    "What are the latest papers in CNN architectures?",
+    "Give literature survey by comparing different CNN papers.",
+    "Explain CNN optimization techniques.",
+    "What are trending papers in CNN?",
+  ];
 
   const handleHome = (home) => {
     setHome(home);
@@ -125,13 +137,18 @@ function App() {
     const moment = new Date();
     const time = moment.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
     const newDialog = { id: 1, sender: 'user', time: time, text: query };
-    const newAiResponse = { id: 2, sender: 'ai', time: time, text: 'Searching for ' + query + '...' };
+    const newAiResponse = { id: 2, sender: 'ai', time: time, text: 'Searching for it' + '...' };
     return [newDialog, newAiResponse];
   };
 
   // Demo paper searching function
   const handleSearch = (query) => {
+    if (!query || query.trim() === "") {
+      return;
+    }
+
     console.log("Searching for: " + query);
+    setIsFirstQuestion(false);
 
     // update the dialog with the search query, and clear the previous search results
     const SearchDialog = searchToDialog(query);
@@ -147,9 +164,9 @@ function App() {
     });
   }
 
-  // Run the search function on startup
+  // Run the search function on startup with empty results
   useEffect(() => {
-    handleSearch("Keyword");
+    setPapers([]);
   }, []);
 
   return (
@@ -173,12 +190,63 @@ function App() {
           </Avatar>
         </div>
       </div>
-        {home ? (
+
+      {isFirstQuestion ? (
+        <div className="flex flex-col items-center justify-center h-[80vh] space-y-8">
+          <div className="flex flex-col items-center space-y-4 w-[600px]">
+            <div className="w-full flex flex-col items-center p-2 pt-3 rounded-xl border bg-white border-color-border-2 drop-shadow-md">
+              <textarea 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSearch(searchQuery);
+                  }
+                }}
+                className="flex-1 px-4 m-2 rounded-lg bg-white text-black placeholder-gray-500 h-32 text-[0.9rem] w-full outline-none border-none focus:ring-0 focus:ring-offset-0 border-0 resize-none"
+                placeholder="Ask me anything about research papers..."
+              />
+              <div className="flex flex-row items-center justify-between w-full p-2 pr-1 pb-1">
+                <div className="flex flex-row items-center justify-center space-x-3">
+                  <FiPaperclip size={18} color="#666F8D"/>
+                  <FiImage size={18} color="#666F8D"/>
+                </div>
+                <ButtonBlue 
+                  text="Search Papers" 
+                  onClick={() => handleSearch(searchQuery)}
+                  disabled={!searchQuery || searchQuery.trim() === ""}
+                  icon={<FaPaperPlane className="mr-1" size={14} color="#FFFFFF"/>}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-center space-y-2">
+            <h2 className="text-sm text-gray-500 mb-2">Or try these prompts for paper browsing:</h2>
+            <div className="flex flex-wrap justify-center gap-2 max-w-[800px]">
+              {presetQuestions.map((question, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setSearchQuery(question);
+                    handleSearch(question);
+                  }}
+                  className="px-4 py-2 text-sm bg-white border border-color-border-2 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-colors"
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div>
+          {home ? (
             <motion.div
               key="home-view"
               className="flex flex-row items-center justify-center w-full h-full space-x-8 px-4 overflow-hidden"
-              initial={{ opacity: 1, x: 1000 }} // HomeListView starts from the right
-              animate={{ opacity: 1, x: 0 }} // It slides in from the right
+              initial={{ opacity: 1, x: 1000 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
               <HomeListView items={homePapers} setItems={setHomePapers} handleAskSelectedPaper={handleAskSelectedPaper} 
@@ -189,8 +257,8 @@ function App() {
             <motion.div
               key="dialog-view"
               className="flex flex-row items-center justify-center w-full h-full space-x-8 px-4 mt-2"
-              initial={{ opacity: 1, x: -1000 }} // DialogView starts in the center
-              animate={{ opacity: 1, x: 0 }} // Slide out to the right
+              initial={{ opacity: 1, x: -1000 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
               onAnimationComplete={handleAnimationComplete}
             >
@@ -211,8 +279,9 @@ function App() {
                 setPdfUrl={setPdfUrl}
               />
             </motion.div>
-          )
-        }
+          )}
+        </div>
+      )}
     </main>
   );
 }
