@@ -3,6 +3,7 @@ import os
 from openai import OpenAI
 import arxiv
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
@@ -10,6 +11,7 @@ import dotenv
 
 
 app = Flask(__name__)
+CORS(app)
 
 # Initialize SentenceTransformer model for embeddings
 model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
@@ -46,17 +48,28 @@ def add_article_to_db(article):
     index.add(np.array([embedding], dtype=np.float32))
 
 
-# Route for searching articles
-@app.route('/search', methods=['GET'])
+# Route for searching articles, using POST instead of GET for the query
+# @app.route('/search', methods=['GET'])
+@app.route('/search', methods=['POST'])
 def search():
-    query = request.args.get('query')
+    print(request.json)
+    
+    # query = request.args.get('query')
+    query = request.json.get('query')
+
+    # for testing
+    print(query)
+
     if not query:
         return jsonify({"error": "Query is required"}), 400
+    
     articles = search_articles(query)
+
     # Add articles to the DB and index if they are not already present
     for article in articles:
         if article['url'] not in articles_db:
             add_article_to_db(article)
+    
     return jsonify(articles)
 
 

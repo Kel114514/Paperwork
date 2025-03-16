@@ -8,9 +8,11 @@ const apiUrl = "http://localhost:5000/";
 
 // Search API: params: {query: "query"}
 export const searchAPI = async (query) => {
-    const response = await axios.post(apiUrl + "search", {
+    const message = {
         query: query,
-    });
+    };
+
+    const response = await axios.post(apiUrl + "search", message);
 
     // response 是 jsonify 的 dict, 在此处可以直接用 response.data 来访问
     var raw_data = response.data;
