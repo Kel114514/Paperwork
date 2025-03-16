@@ -118,5 +118,55 @@ def generate_survey():
     return jsonify({"survey": survey})
 
 
+def chat_with_agent(query: str, history: list = [], model_name: str = 'gpt-4o-mini'):
+    """
+    Regular chat function that maintains conversation history
+    
+    Parameters:
+        query: User's current question/input
+        history: List of previous conversation messages
+        model_name: The model to use for chat
+    """
+    client = OpenAI(
+        base_url="https://api.gptsapi.net/v1",
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+    
+    # Combine history with current query
+    messages = history + [{"role": "user", "content": query}]
+    
+    try:
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            max_tokens=800,
+            temperature=0.7  
+        )
+        return {
+            "response": response.choices[0].message.content,
+            "history": messages + [{"role": "assistant", "content": response.choices[0].message.content}]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    data = request.json
+    if not data or 'query' not in data:
+        return jsonify({"error": "Query is required"}), 400
+    
+    query = data['query']
+    history = data.get('history', []) 
+    model_name = data.get('model', 'gpt-4o-mini') 
+    
+    result = chat_with_agent(query, history, model_name)
+    
+    if "error" in result:
+        return jsonify(result), 500
+    
+    return jsonify(result)
+
+
 if __name__ == '__main__':
     app.run(debug=True)
