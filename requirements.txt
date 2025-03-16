@@ -1,8 +1,8 @@
-arxiv
-pinecone-client
-python-dotenv
-openai
-Flask
-sentence-transformers
-faiss-cpu
-numpy
+arxiv==2.1.3
+pinecone-client==5.0.1
+python-dotenv==1.0.1
+openai==1.61.1
+Flask==3.1.0
+sentence-transformers==3.4.1
+faiss-cpu==1.10.0
+numpy==2.2.2
