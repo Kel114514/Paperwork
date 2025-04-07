@@ -56,7 +56,7 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        "color-border-2": "#E3E6EA",
+        "color-border-2": "#D1D9E0",
         "color-bg-1": "#F7F8FA",
         "darker-blue": "#19213D",
         "color-text-grey": "#666F8D"

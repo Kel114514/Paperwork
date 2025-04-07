@@ -5,19 +5,11 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-export const TooltipIcon = ({ tooltip, icon }) => {
-    const handleSelected = (id, isSelected) => {
-        setItems((prevItems) =>
-            prevItems.map((item) =>
-            item.id === id ? { ...item, selected: isSelected } : item
-            )
-        );
-    };
-
+export const TooltipIcon = ({ tooltip, icon, onClick }) => {
     return (  
         <TooltipProvider>
             <Tooltip>
-                <TooltipTrigger className="hover:drop-shadow-lg">{icon}</TooltipTrigger>
+                <TooltipTrigger className="hover:drop-shadow-lg cursor-pointer" onClick={onClick}>{icon}</TooltipTrigger>
                 <TooltipContent>
                 <p>{tooltip}</p>
                 </TooltipContent>

@@ -17,9 +17,14 @@ export default function PaperPreview({pdfUrl}) {
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                 <h2 className="font-inter font-light text-md text-color-text-grey">{pdfUrl === null && "Click research paper read button to preview."}</h2>
             </div>
-            <object data={pdfUrl} type="application/pdf" width="100%" height="100%">
-                <p>Loading Research Paper...</p>
-            </object>
+            { pdfUrl !== null && 
+            <div className="flex-1 overflow-hidden">
+                <iframe 
+                src={pdfUrl.includes('arxiv.org/abs/') ? pdfUrl.replace('/abs/', '/pdf/') + '.pdf' : pdfUrl} 
+                className="w-full h-full border-0"
+                title="PDF Viewer"
+                />
+            </div> }
         </div>
     );
 }

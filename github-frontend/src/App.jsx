@@ -17,8 +17,9 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { ButtonBlue } from "@/components/ui/buttonBlue"
-import { searchAPI } from "./components/backendHandler";
+import { searchAPI, analyzePapersBatchAPI } from "./components/backendHandler";
 import { FiPaperclip, FiImage } from "react-icons/fi";
+import { chatAPI } from "./components/backendHandler";
 
 function App() {
   const title = "Papers related to CNN"
@@ -29,8 +30,8 @@ function App() {
       id: 1,
       name: "Lorem ipsum dolorsi A",
       author: "James A Mike, Rachael B Dan",
-      date: "2024.12.10",
-      citation: 1240,
+      date: "2023.05.15",
+      citation: 245,
       summary: "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
       url: "https://www.graydart.com/app-media/documents/pdf/dev_sample_pdf_file_150kB.pdf"
     },
@@ -38,8 +39,8 @@ function App() {
       id: 2,
       name: "Lorem ipsum dolorsi B",
       author: "James A Mike, Rachael B Dan",
-      date: "2024.12.10",
-      citation: 1240,
+      date: "2022.08.22",
+      citation: 87,
       summary: "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
       url: "https://www.graydart.com/app-media/documents/pdf/dev_sample_pdf_file_0.5MB.pdf"
     },
@@ -47,8 +48,8 @@ function App() {
       id: 3,
       name: "Lorem ipsum dolorsi A",
       author: "James A Mike, Rachael B Dan",
-      date: "2024.12.10",
-      citation: 1240,
+      date: "2024.01.10",
+      citation: 312,
       summary: "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
       url: "https://www.graydart.com/app-media/documents/pdf/dev_sample_pdf_file_1MB.pdf"
     },
@@ -56,33 +57,14 @@ function App() {
       id: 4,
       name: "Lorem ipsum dolorsi B",
       author: "James A Mike, Rachael B Dan",
-      date: "2024.12.10",
-      citation: 1240,
+      date: "2022.11.30",
+      citation: 42,
       summary: "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore, Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
       url: "https://www.graydart.com/app-media/documents/pdf/dev_sample_pdf_file_5MB.pdf"
     }
   ]
 
-  const initialHomeItems = [
-    {
-      id: 1,
-      name: "Lorem ipsum dolorsi A",
-      author: "James A Mike, Rachael B Dan",
-      date: "2024.12.10",
-      citation: 1240,
-      summary: "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
-      url: "https://www.graydart.com/app-media/documents/pdf/dev_sample_pdf_file_150kB.pdf"
-    },
-    {
-      id: 2,
-      name: "Lorem ipsum dolorsi B",
-      author: "James A Mike, Rachael B Dan",
-      date: "2024.12.10",
-      citation: 1240,
-      summary: "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore",
-      url: "https://www.graydart.com/app-media/documents/pdf/dev_sample_pdf_file_0.5MB.pdf"
-    },
-  ]
+  const initialHomeItems = []
 
   const initialDialogs = [
     { id: 1, sender: 'user', time: '4:33PM', text: 'Lorem ipsum dolor sit amet consectetur tincidunt bibendum gravida phasellus sed dignissim id tempus ridiculus consectur dolor sit amet'},
@@ -92,7 +74,11 @@ function App() {
   ];
 
   const [papers, setPapers] = useState(initialItems)
-  const [homePapers, setHomePapers] = useState(initialHomeItems)
+  const [homePapers, setHomePapers] = useState(() => {
+    // Try to load homePapers from localStorage
+    const savedHomePapers = localStorage.getItem('homePapers');
+    return savedHomePapers ? JSON.parse(savedHomePapers) : initialHomeItems;
+  });
   const [dialogs, setDialogs] = useState(initialDialogs)
   const [home, setHome] = useState(false);
   const [firstSelectTrigger, setFirstSelectTrigger] = useState(false);
@@ -124,12 +110,43 @@ function App() {
     setIsAnimating(false);
   };
 
-  const handleAskSelectedPaper = () => {
-    const selectedHomePapers = homePapers.filter(paper => paper.selected === true);
-    papers.unshift(...selectedHomePapers);
-    setPapers(papers);
+  const handleAskSelectedPaper = async () => {
+    // Analyze selected papers if they don't have analysis
+    const selectedPapers = homePapers.filter(paper => paper.selected === true);
+    const unanalyzedPapers = selectedPapers.filter(paper => !paper.analysis);
+    
+    if (unanalyzedPapers.length > 0) {
+      try {
+        // Pass the searchQuery to the analyzePapersBatchAPI function
+        console.log("Analyzing papers with query in app ask:", searchQuery);
+        const analysisResults = await analyzePapersBatchAPI(unanalyzedPapers, searchQuery);
+        
+        // Update papers with analysis results
+        const updatedPapers = homePapers.map(paper => {
+          const url = paper.url;
+          if (analysisResults[url]) {
+            return {
+              ...paper,
+              analysis: analysisResults[url]
+            };
+          }
+          return paper;
+        });
+        
+        setHomePapers(updatedPapers);
+        
+        // Update the papers for the dialog view with the analyzed papers
+        const analyzedSelectedPapers = updatedPapers.filter(paper => paper.selected === true);
+        setPapers(prevPapers => [...analyzedSelectedPapers, ...prevPapers.filter(p => !analyzedSelectedPapers.some(sp => sp.url === p.url))]);
+      } catch (error) {
+        console.error("Error analyzing papers:", error);
+      }
+    } else {
+      // If all papers are already analyzed, just update the papers for the dialog view
+      setPapers(prevPapers => [...selectedPapers, ...prevPapers.filter(p => !selectedPapers.some(sp => sp.url === p.url))]);
+    }
+    
     setHome(false);
-    console.log("pressed");
   };
 
   // Helper function to convert search query to dialog
@@ -137,7 +154,7 @@ function App() {
     const moment = new Date();
     const time = moment.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
     const newDialog = { id: 1, sender: 'user', time: time, text: query };
-    const newAiResponse = { id: 2, sender: 'ai', time: time, text: 'Searching for it' + '...' };
+    const newAiResponse = { id: 2, sender: 'ai', time: time, text: 'Searching for relevant papers...' };
     return [newDialog, newAiResponse];
   };
 
@@ -149,6 +166,7 @@ function App() {
 
     console.log("Searching for: " + query);
     setIsFirstQuestion(false);
+    setSearchQuery(query); // Store the search query for later use
 
     // update the dialog with the search query, and clear the previous search results
     const SearchDialog = searchToDialog(query);
@@ -161,16 +179,113 @@ function App() {
       console.log(data);
       // Change the papers to the search results
       setPapers(data);
+      
+      // If papers are found, use them to answer the query
+      if (data.length > 0) {
+        // Send the query and paper summaries to the AI backend
+        chatAPI(query, data).then(response => {
+          // Update the dialog with the AI's response
+          setDialogs(prevDialogs => [
+            prevDialogs[0],
+            { 
+              id: 2, 
+              sender: 'ai', 
+              time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
+              text: response 
+            }
+          ]);
+        }).catch(error => {
+          console.error("Error getting AI response:", error);
+          // Fallback response if AI fails
+          setDialogs(prevDialogs => [
+            prevDialogs[0],
+            { 
+              id: 2, 
+              sender: 'ai', 
+              time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
+              text: "I found some relevant papers, but I couldn't generate a response. You can select papers to ask specific questions about them." 
+            }
+          ]);
+        });
+
+        // Start analysis in the background for future Q&A
+        analyzePapers(data, query);
+      }
     });
   }
+
+  // Function to analyze papers
+  const analyzePapers = async (papersToAnalyze, query = null) => {
+    try {
+      console.log("Analyzing papers with query in app:", query);
+      console.log("Query type:", typeof query);
+      
+      const analysisResults = await analyzePapersBatchAPI(papersToAnalyze, query);
+      
+      // Update papers with analysis results
+      setPapers(prevPapers => 
+        prevPapers.map(paper => {
+          const url = paper.url;
+          if (analysisResults[url]) {
+            return {
+              ...paper,
+              analysis: analysisResults[url]
+            };
+          }
+          return paper;
+        })
+      );
+    } catch (error) {
+      console.error("Error analyzing papers:", error);
+    }
+  };
 
   // Run the search function on startup with empty results
   useEffect(() => {
     setPapers([]);
   }, []);
 
+  // Function to archive selected papers to the personal library
+  const archivePapersToLibrary = (selectedPapers) => {
+    if (!selectedPapers || selectedPapers.length === 0) {
+      return;
+    }
+    
+    // Create a new array with the selected papers
+    const papersToArchive = selectedPapers.map(paper => ({
+      ...paper,
+      selected: false // Reset the selected state
+    }));
+    
+    // Add the papers to the homePapers array
+    setHomePapers(prevHomePapers => {
+      // Check for duplicates by URL
+      const existingUrls = new Set(prevHomePapers.map(paper => paper.url));
+      const newPapers = papersToArchive.filter(paper => !existingUrls.has(paper.url));
+      
+      const updatedHomePapers = [...prevHomePapers, ...newPapers];
+      
+      // Save to localStorage
+      localStorage.setItem('homePapers', JSON.stringify(updatedHomePapers));
+      
+      return updatedHomePapers;
+    });
+    
+    // Unselect the papers in the main list
+    setPapers(prevPapers => 
+      prevPapers.map(paper => 
+        selectedPapers.some(sp => sp.id === paper.id) ? { ...paper, selected: false } : paper
+      )
+    );
+  };
+
+  // Add useEffect to save homePapers to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('homePapers', JSON.stringify(homePapers));
+  }, [homePapers]);
+
   return (
-    <main className="flex flex-col min-h-screen min-w-screen bg-[#F7F8FA] overflow-hidden">
+    <main className="flex flex-col min-h-screen min-w-screen bg-[#F6F8FA] overflow-hidden">
       <div className="flex flex-row items-center justify-between w-full bg-white drop-shadow mb-2 pl-5">
         <div className="flex flex-row font-inter items-center justify-start space-x-2 w-[80%] h-14">
           <img src={Logo} alt="" className="select-none pointer-events-none pt-0.5 size-7" />
@@ -267,6 +382,7 @@ function App() {
                 setDialogs={setDialogs} handleHome={handleHome}
                 papers={papers} setPapers={setPapers}
                 firstSelectTrigger={firstSelectTrigger}
+                pdfUrl={pdfUrl}
               /> 
               : <div className="flex flex-col bg-gradient-to-b from-[#f7f8fa] via-[#f6f7fa] to-[#eef0fa] rounded-lg border border-color-border-2 h-[90vh] w-full"
                   style={{ boxShadow: '0 3px 3px rgb(0, 0, 0, 0.12)' }}
@@ -277,6 +393,8 @@ function App() {
                 setFirstSelectTrigger={setFirstSelectTrigger}
                 pdfUrl={pdfUrl}
                 setPdfUrl={setPdfUrl}
+                archivePapersToLibrary={archivePapersToLibrary}
+                initQuery={searchQuery}
               />
             </motion.div>
           )}
