@@ -8,4 +8,4 @@ faiss-cpu==1.10.0
 numpy==2.2.2
 flask_cors
 PyPDF2==3.0.1
-requests==2.31.0
+requests==2.32.0
