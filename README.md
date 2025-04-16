@@ -11,6 +11,7 @@
     Install PyTorch based on your platform and CUDA version by following the [official PyTorch installation guide](https://pytorch.org/get-started/locally/).
 
     Example command for CUDA 12.1 (check the guide for your specific setup):
+
     ```bash
     pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
     ```
