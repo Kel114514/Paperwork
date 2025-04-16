@@ -20,9 +20,9 @@ export default function PaperPreview({pdfUrl}) {
             { pdfUrl !== null && 
             <div className="flex-1 overflow-hidden">
                 <iframe 
-                src={pdfUrl.includes('arxiv.org/abs/') ? pdfUrl.replace('/abs/', '/pdf/') + '.pdf' : pdfUrl} 
-                className="w-full h-full border-0"
-                title="PDF Viewer"
+                    src={pdfUrl.includes('arxiv.org/abs/') ? pdfUrl.replace('/abs/', '/pdf/') + '.pdf' : pdfUrl} 
+                    className="w-full h-full border-0"
+                    title="PDF Viewer"
                 />
             </div> }
         </div>

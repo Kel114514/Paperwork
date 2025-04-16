@@ -17,9 +17,13 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { ButtonBlue } from "@/components/ui/buttonBlue"
-import { searchAPI, analyzePapersBatchAPI } from "./components/backendHandler";
-import { FiPaperclip, FiImage } from "react-icons/fi";
-import { chatAPI } from "./components/backendHandler";
+import { searchAPI, analyzePapersBatchAPI, chatAPI, analyzePaperAPI, comparePapersAPI, extractPdfTextAPI, generateQuestionsAPI, expandKeywordsAPI, updateUnderstandingAPI } from "./components/backendHandler";
+import { FiPaperclip, FiImage, FiMinimize2 } from "react-icons/fi";
+import { useLocalStorage } from "./hooks/useLocalStorage";
+import UnderstandingQuestions from "./components/UnderstandingQuestions";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import KnowledgeStats from "./components/KnowledgeStats";
 
 function App() {
   const title = "Papers related to CNN"
@@ -86,6 +90,12 @@ function App() {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [isFirstQuestion, setIsFirstQuestion] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [augmentedSearch, setAugmentedSearch] = useState(true);
+  const [expandedKeywords, setExpandedKeywords] = useState([]);
+  const [isExpandingKeywords, setIsExpandingKeywords] = useState(false);
+  const [originalPapers, setOriginalPapers] = useState([]);
+  const [showingSelectedPapers, setShowingSelectedPapers] = useState(false);
+  const [shouldUsePaperRef, setShouldUsePaperRef] = useState(false);
 
   const presetQuestions = [
     "What are the latest papers in CNN architectures?",
@@ -93,6 +103,10 @@ function App() {
     "Explain CNN optimization techniques.",
     "What are trending papers in CNN?",
   ];
+
+  const [userUnderstanding, setUserUnderstanding] = useLocalStorage('userUnderstanding', {});
+  const [showUnderstandingQuestions, setShowUnderstandingQuestions] = useState(false);
+  const [currentUnderstandingQuestions, setCurrentUnderstandingQuestions] = useState([]);
 
   const handleHome = (home) => {
     setHome(home);
@@ -111,6 +125,13 @@ function App() {
   };
 
   const handleAskSelectedPaper = async () => {
+    // Save the current papers before replacing them
+    setOriginalPapers(papers);
+    setShowingSelectedPapers(true);
+    
+    // Set the paper reference toggle to true
+    setShouldUsePaperRef(true);
+    
     // Analyze selected papers if they don't have analysis
     const selectedPapers = homePapers.filter(paper => paper.selected === true);
     const unanalyzedPapers = selectedPapers.filter(paper => !paper.analysis);
@@ -149,44 +170,89 @@ function App() {
     setHome(false);
   };
 
-  // Helper function to convert search query to dialog
+  // Modify the searchToDialog function to only include the user's question
   const searchToDialog = (query) => {
     const moment = new Date();
     const time = moment.toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
     const newDialog = { id: 1, sender: 'user', time: time, text: query };
-    const newAiResponse = { id: 2, sender: 'ai', time: time, text: 'Searching for relevant papers...' };
-    return [newDialog, newAiResponse];
+    // Don't add the AI response yet
+    return [newDialog];
   };
 
-  // Demo paper searching function
-  const handleSearch = (query) => {
+  // Modify the handleSearch function to not show "Searching..." immediately
+  const handleSearch = async (query) => {
     if (!query || query.trim() === "") {
       return;
     }
 
     console.log("Searching for: " + query);
     setIsFirstQuestion(false);
-    setSearchQuery(query); // Store the search query for later use
+    setSearchQuery(query);
 
-    // update the dialog with the search query, and clear the previous search results
+    // Update the dialog with just the search query (no AI response yet)
     const SearchDialog = searchToDialog(query);
     setDialogs(SearchDialog);
 
     // Clear the previous search results temporarily
     setPapers([]);
 
-    searchAPI(query).then((data) => {
-      console.log(data);
+    // Check if this is a literature survey request
+    const isLiteratureSurvey = query.toLowerCase().includes('survey') || 
+                              query.toLowerCase().includes('literature') ||
+                              query.toLowerCase().includes('review');
+    
+    // Generate understanding questions after first search
+    if (!isLiteratureSurvey) {
+      try {
+        console.log("Generating understanding questions for query:", query);
+        const questions = await generateQuestionsAPI(query);
+        console.log("Received questions:", questions);
+        
+        if (questions && questions.length > 0) {
+          setCurrentUnderstandingQuestions(questions);
+          setShowUnderstandingQuestions(true);
+          return; // Stop here and wait for user to answer questions
+        } else {
+          console.warn("No questions returned from API");
+        }
+      } catch (error) {
+        console.error("Error generating understanding questions:", error);
+      }
+    }
+    
+    // If we get here, either it's a literature survey or there was an error getting questions
+    // Proceed directly with search
+    proceedWithSearch(query);
+  };
+
+  // Update the proceedWithSearch function to add the "Searching..." message
+  const proceedWithSearch = async (query) => {
+    // Add the "Searching for relevant papers..." message now
+    setDialogs(prevDialogs => [
+      ...prevDialogs,
+      { 
+        id: prevDialogs.length + 1, 
+        sender: 'ai', 
+        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
+        text: 'Searching for relevant papers...' 
+      }
+    ]);
+
+    // Expand keywords if augmented search is enabled
+    const finalQuery = augmentedSearch ? await expandSearchKeywords(query) : query;
+
+    searchAPI(finalQuery, query).then((data) => {
+      console.log("Search results:", data);
       // Change the papers to the search results
       setPapers(data);
       
       // If papers are found, use them to answer the query
       if (data.length > 0) {
         // Send the query and paper summaries to the AI backend
-        chatAPI(query, data).then(response => {
-          // Update the dialog with the AI's response
+        chatAPI(query, data, null, userUnderstanding).then(response => {
+          // Update the dialog with the AI's response (replace the "Searching..." message)
           setDialogs(prevDialogs => [
-            prevDialogs[0],
+            prevDialogs[0], // Keep the user's question
             { 
               id: 2, 
               sender: 'ai', 
@@ -198,7 +264,7 @@ function App() {
           console.error("Error getting AI response:", error);
           // Fallback response if AI fails
           setDialogs(prevDialogs => [
-            prevDialogs[0],
+            prevDialogs[0], // Keep the user's question
             { 
               id: 2, 
               sender: 'ai', 
@@ -207,12 +273,9 @@ function App() {
             }
           ]);
         });
-
-        // Start analysis in the background for future Q&A
-        analyzePapers(data, query);
       }
     });
-  }
+  };
 
   // Function to analyze papers
   const analyzePapers = async (papersToAnalyze, query = null) => {
@@ -284,6 +347,58 @@ function App() {
     localStorage.setItem('homePapers', JSON.stringify(homePapers));
   }, [homePapers]);
 
+  // Function to expand search keywords
+  const expandSearchKeywords = async (query) => {
+    if (!augmentedSearch) return query;
+    
+    try {
+      setIsExpandingKeywords(true);
+      
+      // Use our backend API instead of direct OpenAI call
+      const keywords = await expandKeywordsAPI(query);
+      
+      setExpandedKeywords(keywords);
+      setIsExpandingKeywords(false);
+      
+      return query + " " + keywords.join(" ");
+    } catch (error) {
+      console.error("Error expanding search keywords:", error);
+      setIsExpandingKeywords(false);
+      return query;
+    }
+  };
+
+  // Update the handleUnderstandingAnswers function
+  const handleUnderstandingAnswers = (answers) => {
+    console.log("Received understanding answers:", answers);
+    const updatedUnderstanding = { ...userUnderstanding };
+    
+    currentUnderstandingQuestions.forEach((question, index) => {
+      if (answers[index]) {
+        updatedUnderstanding[question.question] = answers[index];
+      }
+    });
+    
+    // Update local state
+    setUserUnderstanding(updatedUnderstanding);
+    setShowUnderstandingQuestions(false);
+    
+    // Optionally sync with backend
+    updateUnderstandingAPI(updatedUnderstanding).catch(error => {
+      console.error("Error updating understanding on server:", error);
+    });
+
+    // Now proceed with the search using the updated understanding
+    proceedWithSearch(searchQuery);
+  };
+
+  // Add a new function to restore original papers
+  const restoreOriginalPapers = () => {
+    setPapers(originalPapers);
+    setShowingSelectedPapers(false);
+    setShouldUsePaperRef(false);
+  };
+
   return (
     <main className="flex flex-col min-h-screen min-w-screen bg-[#F6F8FA] overflow-hidden">
       <div className="flex flex-row items-center justify-between w-full bg-white drop-shadow mb-2 pl-5">
@@ -322,23 +437,69 @@ function App() {
                 className="flex-1 px-4 m-2 rounded-lg bg-white text-black placeholder-gray-500 h-32 text-[0.9rem] w-full outline-none border-none focus:ring-0 focus:ring-offset-0 border-0 resize-none"
                 placeholder="Ask me anything about research papers..."
               />
-              <div className="flex flex-row items-center justify-between w-full p-2 pr-1 pb-1">
+              <div className="flex flex-row items-center justify-between w-full p-2 pl-3 pr-1 pb-1">
                 <div className="flex flex-row items-center justify-center space-x-3">
                   <FiPaperclip size={18} color="#666F8D"/>
                   <FiImage size={18} color="#666F8D"/>
                 </div>
-                <ButtonBlue 
-                  text="Search Papers" 
-                  onClick={() => handleSearch(searchQuery)}
-                  disabled={!searchQuery || searchQuery.trim() === ""}
-                  icon={<FaPaperPlane className="mr-1" size={14} color="#FFFFFF"/>}
-                />
+                <div className="flex flex-row space-x-4 pl-4 pr-1 font-inter font-medium text-xs text-darker-blue py-1 items-center justify-center">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div 
+                          className="flex items-center space-x-2 cursor-help ask-papers-button"
+                          onClick={() => setAugmentedSearch(!augmentedSearch)}
+                        >
+                          <Switch
+                            checked={augmentedSearch}
+                            onCheckedChange={setAugmentedSearch}
+                            className="mr-1"
+                          />
+                          <span className="text-[0.8rem]">Expand Search Field</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Automatically expand your query with related keywords</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <ButtonBlue 
+                    text="Search Papers" 
+                    onClick={() => handleSearch(searchQuery)}
+                    disabled={!searchQuery || searchQuery.trim() === ""}
+                    icon={<FaPaperPlane className="mr-1" size={14} color="#FFFFFF"/>}
+                  />
+                </div>
               </div>
             </div>
+            
+            {isExpandingKeywords && (
+              <div className="flex items-center justify-center w-full mt-2">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">Expanding search keywords...</span>
+                </div>
+              </div>
+            )}
+            
+            {expandedKeywords.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-wrap gap-2 mt-2"
+              >
+                <span className="text-sm text-gray-600">Added keywords:</span>
+                {expandedKeywords.map((keyword, index) => (
+                  <span key={index} className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                    {keyword}
+                  </span>
+                ))}
+              </motion.div>
+            )}
           </div>
+          
           <div className="flex flex-col items-center space-y-2">
             <h2 className="text-sm text-gray-500 mb-2">Or try these prompts for paper browsing:</h2>
-            <div className="flex flex-wrap justify-center gap-2 max-w-[800px]">
+            <div className="flex flex-wrap justify-center gap-2 max-w-[800px] text-darker-blue">
               {presetQuestions.map((question, index) => (
                 <button
                   key={index}
@@ -346,7 +507,7 @@ function App() {
                     setSearchQuery(question);
                     handleSearch(question);
                   }}
-                  className="px-4 py-2 text-sm bg-white border border-color-border-2 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-colors"
+                  className="px-4 py-2 text-[0.835rem] bg-white border border-color-border-2 rounded-lg hover:bg-gray-50 hover:border-blue-500 transition-colors"
                 >
                   {question}
                 </button>
@@ -364,9 +525,28 @@ function App() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <HomeListView items={homePapers} setItems={setHomePapers} handleAskSelectedPaper={handleAskSelectedPaper} 
-                pdfUrl={pdfUrl} setPdfUrl={setPdfUrl} />
-              <PaperPreview pdfUrl={pdfUrl} />
+              <HomeListView 
+                items={homePapers} 
+                setItems={setHomePapers} 
+                handleAskSelectedPaper={handleAskSelectedPaper} 
+                pdfUrl={pdfUrl} 
+                setPdfUrl={setPdfUrl} 
+              />
+              
+              {/* Conditionally render either PaperPreview or KnowledgeStats */}
+              {pdfUrl ? (
+                <div className="relative w-full">
+                  <PaperPreview pdfUrl={pdfUrl} />
+                  <button 
+                    onClick={() => setPdfUrl(null)}
+                    className="absolute top-4 right-4 p-2 bg-white rounded-full shadow-md hover:bg-gray-100 transition-colors"
+                  >
+                    <FiMinimize2 className="text-gray-600" />
+                  </button>
+                </div>
+              ) : (
+                <KnowledgeStats />
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -377,18 +557,36 @@ function App() {
               transition={{ duration: 0.5 }}
               onAnimationComplete={handleAnimationComplete}
             >
-              {!isAnimating 
-              ? <DialogView title={title} model={model} dialogs={dialogs}
-                setDialogs={setDialogs} handleHome={handleHome}
-                papers={papers} setPapers={setPapers}
-                firstSelectTrigger={firstSelectTrigger}
-                pdfUrl={pdfUrl}
-              /> 
-              : <div className="flex flex-col bg-gradient-to-b from-[#f7f8fa] via-[#f6f7fa] to-[#eef0fa] rounded-lg border border-color-border-2 h-[90vh] w-full"
+              {!isAnimating ? (
+                <div className="flex flex-col w-full">
+                  <DialogView 
+                    title={title} 
+                    model={model} 
+                    dialogs={dialogs}
+                    setDialogs={setDialogs} 
+                    handleHome={handleHome}
+                    papers={papers} 
+                    setPapers={setPapers}
+                    firstSelectTrigger={firstSelectTrigger}
+                    pdfUrl={pdfUrl}
+                    userUnderstanding={userUnderstanding}
+                    showUnderstandingQuestions={showUnderstandingQuestions}
+                    currentUnderstandingQuestions={currentUnderstandingQuestions}
+                    handleUnderstandingAnswers={handleUnderstandingAnswers}
+                    expandedKeywords={expandedKeywords}
+                    isExpandingKeywords={isExpandingKeywords}
+                    searchQuery={searchQuery}
+                    shouldUsePaperRef={shouldUsePaperRef}
+                  /> 
+                </div>
+              ) : (
+                <div className="flex flex-col bg-gradient-to-b from-[#f7f8fa] via-[#f6f7fa] to-[#eef0fa] rounded-lg border border-color-border-2 h-[90vh] w-full"
                   style={{ boxShadow: '0 3px 3px rgb(0, 0, 0, 0.12)' }}
                 />
-              }
-              <PaperListView items={papers} setItems={setPapers}
+              )}
+              <PaperListView 
+                items={papers} 
+                setItems={setPapers}
                 firstSelectTrigger={firstSelectTrigger}
                 setFirstSelectTrigger={setFirstSelectTrigger}
                 pdfUrl={pdfUrl}

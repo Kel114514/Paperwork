@@ -8,7 +8,7 @@ import { FiDownload } from "react-icons/fi";
 import { FiMinimize2 } from "react-icons/fi";
 import { ButtonBlue } from "@/components/ui/buttonBlue";
 import { TooltipIcon } from "./ui/tooltipIcon";
-import { FaAngleRight } from "react-icons/fa6";
+import { FaAngleRight, FaAngleDown } from "react-icons/fa";
 import { FiPackage } from "react-icons/fi";
 import { FiTarget, FiZap, FiCheckSquare, FiClock, FiTrendingUp, FiSearch } from "react-icons/fi";
 import { analyzePapersBatchAPI } from "./backendHandler";
@@ -24,8 +24,22 @@ import { FiPaperclip } from "react-icons/fi";
 import { FiImage } from "react-icons/fi";
 import { GrMicrophone } from "react-icons/gr";
 import { MdOutlineViewCompact, MdOutlineViewAgenda, MdOutlineViewStream } from "react-icons/md";
+import { BsLayoutSidebarReverse, BsLayoutSplit, BsLayoutSidebar } from "react-icons/bs";
+import { FiArrowLeft } from "react-icons/fi";
+import { FaArrowLeft } from "react-icons/fa6";
 
-export default function PaperListView({ items, setItems, firstSelectTrigger, setFirstSelectTrigger, pdfUrl, setPdfUrl, archivePapersToLibrary, initQuery }) {
+export default function PaperListView({ 
+  items, 
+  setItems, 
+  firstSelectTrigger, 
+  setFirstSelectTrigger,
+  pdfUrl, 
+  setPdfUrl, 
+  archivePapersToLibrary, 
+  initQuery,
+  showingSelectedPapers,
+  restoreOriginalPapers
+}) {
   const [isHovered, setIsHovered] = useState(false); // State to track hover
   const [isAskHovered, setIsAskHovered] = useState(false); // State to track hover
   const [isAnalyzing, setIsAnalyzing] = useState(false); // State to track analysis status
@@ -94,6 +108,8 @@ export default function PaperListView({ items, setItems, firstSelectTrigger, set
       
       // Always include the query parameter in the request, even if it's null
       const analysisResults = await analyzePapersBatchAPI(items, query);
+
+      console.log("Analysis results:", analysisResults);
       
       // Update items with analysis results
       setItems(prevItems => 
@@ -326,15 +342,22 @@ export default function PaperListView({ items, setItems, firstSelectTrigger, set
                   </h1>
                   your interest papers
               </div>
-              <div className="flex flex-row items-center justify-start px-3 space-x-4">
+              <div className={`flex flex-row items-center justify-start space-x-4 ${!showingSelectedPapers && 'px-3'}`}>
                   <div className="relative" ref={dropdownRef}>
-                    <ButtonBlue 
-                      className="font-inter" 
-                      text="Rank Papers By" 
-                      icon={<FaAngleRight size={14} color="#FFFFFF" />} 
-                      disabled={isAnalyzing}
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    />
+                    {!showingSelectedPapers && (
+                      <ButtonBlue 
+                        className="font-inter" 
+                        text={
+                          <span className="font-semibold">Rank Papers By</span>
+                        }
+                        icon={isDropdownOpen ? 
+                          <FaAngleDown size={14} color="#FFFFFF" /> : 
+                          <FaAngleRight size={14} color="#FFFFFF" />
+                        } 
+                        // disabled={isAnalyzing}
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      />
+                    )}
                     
                     {isDropdownOpen && (
                       <div className="absolute z-50 w-[15rem] overflow-hidden rounded-md border pb-3 pt-2 border-color-border-2 bg-white text-darker-blue shadow-md mt-1">
@@ -354,31 +377,59 @@ export default function PaperListView({ items, setItems, firstSelectTrigger, set
                         </div>
                         <div className="w-full h-[1px] bg-[#E3E6EA] my-2" />
                         <div 
-                          className="relative flex cursor-pointer select-none items-center mx-2 px-2 py-1.5 text-sm outline-none transition-colors hover:bg-color-bg-1 hover:text-darker-blue"
-                          onClick={() => rankPapersBy("relevance")}
+                          className={`relative flex select-none items-center mx-2 px-2 py-1.5 text-sm outline-none transition-colors ${
+                            isAnalyzing 
+                              ? "opacity-50 cursor-not-allowed text-gray-400" 
+                              : "cursor-pointer hover:bg-color-bg-1 hover:text-darker-blue"
+                          }`}
+                          onClick={() => !isAnalyzing && rankPapersBy("relevance")}
                         >
-                          <FiTarget className="mr-2 font-color-border-2" size={16} />
+                          <FiTarget className={`mr-2 ${isAnalyzing ? "text-gray-400" : "font-color-border-2"}`} size={16} />
                           By Relevance
                         </div>
                         <div 
-                          className="relative flex cursor-pointer select-none items-center mx-2 px-2 py-1.5 text-sm outline-none transition-colors hover:bg-color-bg-1 hover:text-darker-blue"
-                          onClick={() => rankPapersBy("technical_innovation")}
+                          className={`relative flex select-none items-center mx-2 px-2 py-1.5 text-sm outline-none transition-colors ${
+                            isAnalyzing 
+                              ? "opacity-50 cursor-not-allowed text-gray-400" 
+                              : "cursor-pointer hover:bg-color-bg-1 hover:text-darker-blue"
+                          }`}
+                          onClick={() => !isAnalyzing && rankPapersBy("technical_innovation")}
                         >
-                          <FiZap className="mr-2 font-color-border-2" size={16} />
+                          <FiZap className={`mr-2 ${isAnalyzing ? "text-gray-400" : "font-color-border-2"}`} size={16} />
                           By Technical Innovation
                         </div>
                         <div 
-                          className="relative flex cursor-pointer select-none items-center mx-2 px-2 py-1.5 text-sm outline-none transition-colors hover:bg-color-bg-1 hover:text-darker-blue"
-                          onClick={() => rankPapersBy("feasibility")}
+                          className={`relative flex select-none items-center mx-2 px-2 py-1.5 text-sm outline-none transition-colors ${
+                            isAnalyzing 
+                              ? "opacity-50 cursor-not-allowed text-gray-400" 
+                              : "cursor-pointer hover:bg-color-bg-1 hover:text-darker-blue"
+                          }`}
+                          onClick={() => !isAnalyzing && rankPapersBy("feasibility")}
                         >
-                          <FiCheckSquare className="mr-2 font-color-border-2" size={16} />
+                          <FiCheckSquare className={`mr-2 ${isAnalyzing ? "text-gray-400" : "font-color-border-2"}`} size={16} />
                           By Feasibility/Operability
                         </div>
                       </div>
                     )}
                   </div>
                   
-
+                  {/* Add Back to Original Papers button */}
+                  {showingSelectedPapers && (
+                    <ButtonBlue 
+                      className="font-inter" 
+                      text={<span className="font-semibold ml-1">Back to Original Papers</span>}
+                      icon={<FaArrowLeft size={14} color="#FFFFFF" />} 
+                      onClick={restoreOriginalPapers}
+                    />
+                  )}
+                  
+                  {/* Simple animated circle loading indicator */}
+                  {isAnalyzing && (
+                    <div className="flex items-center space-x-2">
+                      <div className="loading-spinner"></div>
+                      <span className="text-xs text-gray-600">Analyzing...</span>
+                    </div>
+                  )}
                   
                   <div className="w-[1.5px] h-8 bg-[#E3E6EA]" />
                   <div className="flex flex-row items-center justify-start space-x-3">
@@ -421,7 +472,7 @@ export default function PaperListView({ items, setItems, firstSelectTrigger, set
                 axis="y" 
                 onReorder={setItems} 
                 values={items}
-                className="overflow-y-auto"
+                className="overflow-y-auto overflow-x-hidden"
               >
                   {items.map((item, index) => (
                       <div onMouseEnter={() => handleIsHovered(true, item.selected)}
@@ -447,21 +498,21 @@ export default function PaperListView({ items, setItems, firstSelectTrigger, set
                       onClick={() => setPdfLayout("compact")}
                       title="Compact View"
                     >
-                      <MdOutlineViewCompact size={20} />
+                      <BsLayoutSidebarReverse size={20} />
                     </button>
                     <button 
                       className={`p-1.5 rounded-md ${pdfLayout === "wide" ? "bg-color-bg-1 text-[#2388FF]" : "text-darker-blue hover:bg-color-bg-1"}`}
                       onClick={() => setPdfLayout("wide")}
                       title="Wide View"
                     >
-                      <MdOutlineViewAgenda size={20} />
+                      <BsLayoutSplit  size={20} />
                     </button>
                     <button 
                       className={`p-1.5 rounded-md ${pdfLayout === "full" ? "bg-color-bg-1 text-[#2388FF]" : "text-darker-blue hover:bg-color-bg-1"}`}
                       onClick={() => setPdfLayout("full")}
                       title="Full View"
                     >
-                      <MdOutlineViewStream size={20} />
+                      <BsLayoutSidebar size={20} />
                     </button>
                   </div>
                   <button 

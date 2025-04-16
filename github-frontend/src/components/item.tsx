@@ -7,7 +7,7 @@ import { useState } from "react";
 import { FiStar, FiTarget, FiZap, FiCheckSquare } from "react-icons/fi";
 
 // Function to shorten author names
-const shortenAuthorName = (authorName: string, maxLength: number = 45) => {
+const shortenAuthorName = (authorName: string, maxLength: number = 40) => {
   if (authorName.length <= maxLength) return authorName;
   return authorName.substring(0, maxLength) + "...";
 };
@@ -78,8 +78,11 @@ export const Item = ({ item, index, setSelected, allowDrag, pdfUrl, setPdfUrl }:
     <Reorder.Item id={item.id} value={item} dragListener={false} dragControls={controls}
       transition={{ duration: 0, ease: "linear" }}>
     <div className={`w-full items-start justify-start ${!fold && "flex flex-col"}`}>
-      <div className={`flex flex-row space-x-2 items-center justify-between bg-white ${fold ? "w-full" : "w-fit"} px-[8px] py-[10px] border border-color-border-2 rounded-md
-        ${fold ? "drop-shadow-[0_2px_4px_rgba(25,33,61,0.08)] hover:drop-shadow-md" : "z-20 rounded-b-none border-b-0 py-[8px]"}`}>
+      <div className={
+        `flex flex-row space-x-2 items-center justify-between bg-white ${fold ? "w-full" : "w-fit"} px-[8px] py-[10px] border border-color-border-2 rounded-md ${
+          fold ? "drop-shadow-[0_2px_4px_rgba(25,33,61,0.08)] hover:drop-shadow-md" 
+          : "z-20 rounded-b-none border-b-0 py-[8px] w-[36.5rem]"}`
+        }>
         <div className="select-none flex flex-row space-x-2 items-center justify-between">
           <img className={`reorder-handle select-none pointer-events-none ${allowDrag ? "pl-0.5" : "pl-1 pr-1 ml-0"}`} 
             src={thisSelected 
@@ -141,8 +144,8 @@ export const Item = ({ item, index, setSelected, allowDrag, pdfUrl, setPdfUrl }:
             </div>
           )}
         </div>
-      <div className={`flex flex-row w-[38.85rem] h-fit bg-transparent ${fold && "hidden"}`}>
-        <div className="h-fit flex flex-col items-start justify-between w-full bg-white px-4 py-[10px] border border-color-border-2 rounded-md rounded-tl-none drop-shadow-[0_2px_4px_rgba(25,33,61,0.08)] hover:drop-shadow-md">
+      <div className={`flex flex-row w-[36.5rem] h-fit bg-transparent ${fold && "hidden"} z-10`}>
+        <div className="h-fit flex flex-col items-start justify-between w-full bg-white px-4 py-[10px] border border-color-border-2 rounded-md rounded-tl-none rounded-tr-none drop-shadow-[0_2px_4px_rgba(25,33,61,0.08)] hover:drop-shadow-md">
           <div className="flex flex-row w-full items-center justify-between border-b border-color-border-2 pb-3">
             <span className="font-inter font-medium text-xs text-darker-blue rounded-md tagShadow py-1 px-2 bg-color-bg-1 w-fit text-nowrap flex flex-row group relative">
               Author: <h1 className="italic font-normal pl-1">{shortenAuthorName(item.author)}</h1>

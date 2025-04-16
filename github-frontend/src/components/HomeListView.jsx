@@ -38,7 +38,7 @@ export default function HomeListView({items, setItems, handleAskSelectedPaper, p
             </div>
             <Reorder.Group axis="y" onReorder={setItems} values={items}>
                 {items.map((item, index) => (
-                    <Item key={item.id} item={item} index={index} setSelected={handleSelected} allowDrag={true} pdfUrl={pdfUrl} setPdfUrl={setPdfUrl}/>
+                    <Item key={item.url} item={item} index={index} setSelected={handleSelected} allowDrag={true} pdfUrl={pdfUrl} setPdfUrl={setPdfUrl}/>
                 ))}
             </Reorder.Group>
         </div>
