@@ -79,7 +79,7 @@ export const Item = ({ item, index, setSelected, allowDrag, pdfUrl, setPdfUrl }:
       transition={{ duration: 0, ease: "linear" }}>
     <div className={`w-full items-start justify-start ${!fold && "flex flex-col"}`}>
       <div className={
-        `flex flex-row space-x-2 items-center justify-between bg-white ${fold ? "w-full" : "w-fit"} px-[8px] py-[10px] border border-color-border-2 rounded-md ${
+        `flex flex-row space-x-2 items-center justify-between bg-white ${fold ? "w-full" : ""} px-[8px] py-[10px] border border-color-border-2 rounded-md ${
           fold ? "drop-shadow-[0_2px_4px_rgba(25,33,61,0.08)] hover:drop-shadow-md" 
           : "z-20 rounded-b-none border-b-0 py-[8px] w-[36.5rem]"}`
         }>
@@ -127,7 +127,7 @@ export const Item = ({ item, index, setSelected, allowDrag, pdfUrl, setPdfUrl }:
                 </>
               )}
               <div className="flex flex-row space-x-2">
-                <span className="w-fit min-w-[5.5rem] font-inter font-medium text-xs text-darker-blue rounded-md tagShadow py-1 px-2 bg-color-bg-1 flex flex-row whitespace-nowrap">Citation: <h1 className="italic font-normal pl-1">{item.citation}</h1></span>
+                {/* <span className="w-fit min-w-[5.5rem] font-inter font-medium text-xs text-darker-blue rounded-md tagShadow py-1 px-2 bg-color-bg-1 flex flex-row whitespace-nowrap">Citation: <h1 className="italic font-normal pl-1">{item.citation}</h1></span> */}
                 <span className={`font-inter font-medium text-xs ${item.url === pdfUrl ? "text-[#2388FF]" : "text-darker-blue"} rounded-md tagShadow py-1 px-2 bg-color-bg-1 cursor-pointer whitespace-nowrap`} 
                   onClick={() => {
                     if (item.url === pdfUrl) {

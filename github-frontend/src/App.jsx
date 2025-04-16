@@ -26,8 +26,10 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import KnowledgeStats from "./components/KnowledgeStats";
 
 function App() {
-  const title = "Papers related to CNN"
   const model = "GPT-4"
+  
+  // Replace the static title with a state variable
+  const [title, setTitle] = useState("Papers related to CNN")
 
   const initialItems = [
     {
@@ -188,6 +190,9 @@ function App() {
     console.log("Searching for: " + query);
     setIsFirstQuestion(false);
     setSearchQuery(query);
+    
+    // Update the title with the query, truncating if necessary
+    setTitle(query.length > 30 ? query.substring(0, 30) + "..." : query);
 
     // Update the dialog with just the search query (no AI response yet)
     const SearchDialog = searchToDialog(query);

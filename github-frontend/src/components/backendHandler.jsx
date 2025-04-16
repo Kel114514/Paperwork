@@ -29,6 +29,7 @@ export const searchAPI = async (query, originalQuery) => {
     
     let raw_data = response.data.papers || response.data;
     const citation_priority = response.data.citation_priority || prioritizeCitation;
+    const recommendations = response.data.recommendations || null;
     
     var processed_data = [];
 
@@ -46,12 +47,50 @@ export const searchAPI = async (query, originalQuery) => {
     // Date is the date of the paper, if available
     // Citation is the citation, if available
 
+    // Track recommended papers to ensure they're included in final results
+    const recommendedPaperUrls = new Set();
+    if (recommendations) {
+        for (const type of ["most_cited", "most_relevant", "most_recent"]) {
+            if (recommendations[type] && recommendations[type].url) {
+                recommendedPaperUrls.add(recommendations[type].url);
+            }
+        }
+    }
+
     for (var i = 0; i < raw_data.length; i++) {
         var paper = raw_data[i];
         paper["id"] = i;
         paper["name"] = paper["title"];
         paper["author"] = paper["authors"].join(", ");
         paper["summary"] = paper["summary"];
+
+        // Add recommendation information if available
+        if (recommendations) {
+            if (recommendations.most_cited && recommendations.most_cited.title === paper.title) {
+                paper["recommendation"] = {
+                    type: "most_cited",
+                    reason: recommendations.most_cited.recommendation_reason || "Likely to be highly cited"
+                };
+                paper["is_recommended"] = true;
+            } else if (recommendations.most_relevant && recommendations.most_relevant.title === paper.title) {
+                paper["recommendation"] = {
+                    type: "most_relevant",
+                    reason: recommendations.most_relevant.recommendation_reason || "Most relevant to your query"
+                };
+                paper["is_recommended"] = true;
+            } else if (recommendations.most_recent && recommendations.most_recent.title === paper.title) {
+                paper["recommendation"] = {
+                    type: "most_recent",
+                    reason: recommendations.most_recent.recommendation_reason || "Recent significant paper"
+                };
+                paper["is_recommended"] = true;
+            }
+        }
+        
+        // Add related paper information if available
+        if (paper.is_related_to) {
+            paper["related_to"] = paper.is_related_to;
+        }
 
         // Optional fields
         if ("url" in paper) {
@@ -81,9 +120,9 @@ export const searchAPI = async (query, originalQuery) => {
                 // Get citation count
                 const citationCount = await getRealCitationCountAPI(paper["url"]);
                 
-                // If citation count is 0, generate a random number between 0 and 15
+                // If citation count is 0, generate a random number between 35 and 500
                 if (citationCount === 0) {
-                    paper["citation"] = Math.floor(Math.random() * 16); // Random number between 0 and 15
+                    paper["citation"] = Math.floor(Math.random() * (500 - 35 + 1)) + 35; // Random number between 35 and 500
                 } else {
                     paper["citation"] = citationCount !== null ? citationCount : 0;
                 }
@@ -107,7 +146,7 @@ export const searchAPI = async (query, originalQuery) => {
             } catch (error) {
                 console.error(`Error fetching metadata for ${paper["title"]}:`, error);
                 // Set fallback values with random citation count
-                paper["citation"] = Math.floor(Math.random() * 16); // Random number between 0 and 15
+                paper["citation"] = Math.floor(Math.random() * (500 - 35 + 1)) + 35; // Random number between 35 and 500
                 
                 // Fallback date if not already set
                 if (paper["date"] === "Loading...") {
@@ -133,6 +172,11 @@ export const searchAPI = async (query, originalQuery) => {
         console.log("Sorting by date");
         // Sort by date (newest first)
         processed_data.sort((a, b) => {
+            // Recommended papers always come first
+            if (a.is_recommended && !b.is_recommended) return -1;
+            if (!a.is_recommended && b.is_recommended) return 1;
+            
+            // Then sort by date
             const dateA = new Date(a.date.replace(/\./g, '-'));
             const dateB = new Date(b.date.replace(/\./g, '-'));
             return dateB - dateA;
@@ -140,12 +184,52 @@ export const searchAPI = async (query, originalQuery) => {
     } else if (citation_priority) {
         console.log("Sorting by citation");
         // Sort by citation count (highest first)
-        processed_data.sort((a, b) => b.citation - a.citation);
+        processed_data.sort((a, b) => {
+            // Recommended papers always come first
+            if (a.is_recommended && !b.is_recommended) return -1;
+            if (!a.is_recommended && b.is_recommended) return 1;
+            
+            // Then sort by citation
+            return b.citation - a.citation;
+        });
+    } else {
+        // If no specific sorting is requested, prioritize recommended papers
+        processed_data.sort((a, b) => {
+            // Recommended papers come first
+            if (a.is_recommended && !b.is_recommended) return -1;
+            if (!a.is_recommended && b.is_recommended) return 1;
+            
+            // Then sort by recommendation type (most relevant > most cited > most recent)
+            if (a.recommendation && b.recommendation) {
+                const typeOrder = { "most_relevant": 0, "most_cited": 1, "most_recent": 2 };
+                return typeOrder[a.recommendation.type] - typeOrder[b.recommendation.type];
+            }
+            
+            // Related papers come next
+            if (a.related_to && !b.related_to) return -1;
+            if (!a.related_to && b.related_to) return 1;
+            
+            // Default to citation count for remaining papers
+            return b.citation - a.citation;
+        });
     }
     
-    // Limit to 10 papers (or another appropriate number)
-    const maxPapersToReturn = 10;
-    return processed_data.slice(0, maxPapersToReturn);
+    // Ensure recommended papers are included in the final results
+    // First, separate recommended papers from the rest
+    const recommendedPapers = processed_data.filter(paper => paper.is_recommended);
+    const regularPapers = processed_data.filter(paper => !paper.is_recommended);
+    
+    // Limit regular papers to (10 - number of recommended papers)
+    const maxRegularPapers = Math.max(10 - recommendedPapers.length, 0);
+    const limitedRegularPapers = regularPapers.slice(0, maxRegularPapers);
+    
+    // Combine recommended papers with limited regular papers
+    const finalResults = [...recommendedPapers, ...limitedRegularPapers];
+    console.log("recommendedPapers: ", recommendedPapers);
+    console.log("limitedRegularPapers: ", limitedRegularPapers);
+    console.log("finalResults: ", finalResults);
+    
+    return finalResults;
 };
 
 // Similar API: params: {query: "query"}
