@@ -57,7 +57,7 @@
     Open a new terminal, navigate to the github_frontend directory, and run:
 
     ```bash
-    cd github_frontend
+    cd github-frontend
     npm run dev
     ```
 
