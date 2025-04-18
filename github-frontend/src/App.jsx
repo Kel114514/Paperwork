@@ -17,7 +17,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar"
 import { ButtonBlue } from "@/components/ui/buttonBlue"
-import { searchAPI, analyzePapersBatchAPI, chatAPI, analyzePaperAPI, comparePapersAPI, extractPdfTextAPI, generateQuestionsAPI, expandKeywordsAPI, updateUnderstandingAPI } from "./components/backendHandler";
+import { searchAPI, analyzePapersBatchAPI, chatAPI, analyzePaperAPI, comparePapersAPI, extractPdfTextAPI, generateQuestionsAPI, expandKeywordsAPI, updateUnderstandingAPI, extractAPI, getPapersByTitleAPI } from "./components/backendHandler";
 import { FiPaperclip, FiImage, FiMinimize2 } from "react-icons/fi";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import UnderstandingQuestions from "./components/UnderstandingQuestions";
@@ -230,22 +230,79 @@ function App() {
     proceedWithSearch(query);
   };
 
-  // Update the proceedWithSearch function to add the "Searching..." message
-  const proceedWithSearch = async (query) => {
-    // Add the "Searching for relevant papers..." message now
-    setDialogs(prevDialogs => [
-      ...prevDialogs,
-      { 
-        id: prevDialogs.length + 1, 
-        sender: 'ai', 
-        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
-        text: 'Searching for relevant papers...' 
+  const newExtractRoutine = async (finalQuery, query) => {
+    // This is the code for using AI response to get the mentioned papers in the chat
+
+    var paperByAI = [];
+
+    // Here is the new searchAPI call, with adjusted orders of execution
+    // Force waiting for the AI response before proceeding with the searchAPI call
+
+    await chatAPI(query, [], null, userUnderstanding).then(response => {
+      // Update the dialog with the AI's response (replace the "Searching..." message)
+      setDialogs(prevDialogs => [
+        prevDialogs[0], // Keep the user's question
+        { 
+          id: 2, 
+          sender: 'ai', 
+          time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
+          text: response 
+        }
+      ]);
+
+      // Extract the papers that are shown in the AI response
+      extractAPI(query, response).then(extractedPaperTitles => {
+        console.log("Extracted paper titles:", extractedPaperTitles);
+        // Run the getPaperByTitleAPI for the list of extracted paper titles, if not empty
+        if (extractedPaperTitles.length > 0) {
+          getPapersByTitleAPI(extractedPaperTitles).then(papers => {
+            console.log("Papers from AI response:", papers);
+            // Add the papers to the paperByAI array
+            paperByAI = papers;
+          }).catch(error => {
+            console.error("Error getting papers by title:", error);
+          });
+        }
+      }).catch(error => {
+        console.error("Error extracting papers:", error);
+      });
+    
+    }).catch(error => {
+      console.error("Error getting AI response:", error);
+      // Fallback response if AI fails
+      setDialogs(prevDialogs => [
+        prevDialogs[0], // Keep the user's question
+        { 
+          id: 2, 
+          sender: 'ai', 
+          time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
+          text: "I will search for relevant papers, but I couldn't generate a response. You can select papers to ask specific questions about them." 
+        }
+      ]);
+    });
+
+    // Perform the searchAPI call with the final query
+    await searchAPI(finalQuery, query).then((data) => {
+      console.log("Search results:", data);
+      // Add the papers by AI to the search results
+      if (paperByAI.length > 0) {
+        data = [...data, ...paperByAI];
       }
-    ]);
+      console.log("Final search results:", data);
+      // Remove duplicates based on URL
+      const uniquePapers = Array.from(new Set(data.map(paper => paper.url)))
+        .map(url => data.find(paper => paper.url === url));
+      // Set the data to be the unique papers
+      data = uniquePapers;
+      console.log("Final search results after removing duplicates:", data);
+      // Change the papers to the search results
+      setPapers(data);
+    }).catch(error => {
+      console.error("Error searching papers:", error);
+    });
+  }
 
-    // Expand keywords if augmented search is enabled
-    const finalQuery = augmentedSearch ? await expandSearchKeywords(query) : query;
-
+  const oldSearchRoutine = async (finalQuery, query) => {
     searchAPI(finalQuery, query).then((data) => {
       console.log("Search results:", data);
       // Change the papers to the search results
@@ -280,6 +337,29 @@ function App() {
         });
       }
     });
+  }
+
+  // Update the proceedWithSearch function to add the "Searching..." message
+  const proceedWithSearch = async (query) => {
+    // Add the "Searching for relevant papers..." message now
+    setDialogs(prevDialogs => [
+      ...prevDialogs,
+      { 
+        id: prevDialogs.length + 1, 
+        sender: 'ai', 
+        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }), 
+        text: 'Searching for relevant papers...' 
+      }
+    ]);
+
+    // Expand keywords if augmented search is enabled
+    const finalQuery = augmentedSearch ? await expandSearchKeywords(query) : query;
+
+    // New search routine with AI response and paper extraction
+    // await newExtractRoutine(finalQuery, query);
+
+    // The original searchAPI call
+    await oldSearchRoutine(finalQuery, query);
   };
 
   // Function to analyze papers

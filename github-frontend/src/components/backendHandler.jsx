@@ -240,6 +240,25 @@ export const similarAPI = async (query) => {
     return response;
 }
 
+// Extract API: params: {query: "query", "response": "response"}
+export const extractAPI = async (query, response_text) => {
+    const message = {
+        query: query,
+        response_text: response_text,
+    };
+    const response = await axios.post(apiUrl + "extract-papers", message);
+    console.log("Extract API response: ", response.data);
+    return response.data.papers; // Return the list of papers
+}
+
+// Get papers by Title API: params: {titles: ["title1", "title2", ...]}
+export const getPapersByTitleAPI = async (titles) => {
+    const response = await axios.post(apiUrl + "get-papers-by-title", {
+        titles: titles,
+    });
+    return response.data.papers; // Return the list of papers
+}
+
 // Generate Survey API: params: {selected_articles: ["article1", "article2", ...]}
 export const generateSurveyAPI = async (selected_articles) => {
     const response = await axios.post(apiUrl + "generate-survey", {

@@ -168,7 +168,127 @@ def search():
         "recommendations": recommendations
     })
 
+def extract_papers_from_response(query, response_text):
+    """
+    Extract paper titles from the model's response text.
+    
+    Parameters:
+        query: The user's search query
+        response_text: The text response from the model from the original query
+    
+    Returns:
+        A dictionary with recommendations for different paper types
+    """
+    # Initialize with empty recommendations
+    recommendations = {}
 
+    if not query:
+        return recommendations
+    
+    # Create a prompt 
+    prompt = f"""
+    Based on the response to the query "{query}", identify:
+
+    The full title of the paper that shown in the response (if any).
+
+    Response:
+    {response_text}
+
+    Format your response as a JSON object with the following structure:
+    {{
+        "papers": [
+            {{
+                "title": "paper title",
+            }},
+            ...
+        ]
+    }}
+    
+    Ensure your response is valid JSON that can be parsed.
+
+    If no papers are found, return an empty JSON object.
+    """
+
+    client = OpenAI(
+        base_url="https://api.gptsapi.net/v1",
+        api_key=openai_api_key
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1000,
+            temperature=0.3,
+            response_format={"type": "json_object"}
+        )
+
+        # Parse the JSON response
+        analysis = json.loads(response.choices[0].message.content)
+        
+        # Extract papers from the response
+        recommendations["papers"] = analysis.get("papers", [])
+        
+        return recommendations
+    
+    except Exception as e:
+        print(f"Error generating paper recommendations: {str(e)}")
+        return recommendations
+
+@app.route('/extract-papers', methods=['POST'])
+def extract_papers():
+    """
+    Endpoint to extract paper titles from the model's response text.
+    """
+    # print(request.json)
+    data = request.json
+    if not data or 'query' not in data or 'response_text' not in data:
+        return jsonify({"error": "Query and response_text are required"}), 400
+
+    query = data['query']
+    response_text = data['response_text']
+
+    recommendations = extract_papers_from_response(query, response_text)
+
+    if "error" in recommendations:
+        return jsonify(recommendations), 500
+
+    return jsonify(recommendations)
+
+@app.route('/get-papers-by-title', methods=['POST'])
+def get_papers_by_title():
+    """
+    Endpoint to get papers by title.
+    """
+    data = request.json
+    if not data or 'titles' not in data:
+        return jsonify({"error": "Titles are required"}), 400
+
+    titles = data['titles']
+    
+    if not isinstance(titles, list):
+        return jsonify({"error": "Titles should be a list"}), 400
+    
+    found_papers = []
+    for title in titles:
+        # Search for papers by title
+        # the title would be in format {'title': 'paper title'}
+        if isinstance(title, dict) and 'title' in title:
+            title = title['title']
+        elif not isinstance(title, str):
+            continue  # Skip if title is not a string
+        print(f"Searching for title: {title}")
+        search_results = search_articles(title, max_results=1)
+        if search_results:
+            found_papers.append(search_results[0])
+    
+    # If no papers found, return an empty list
+    if not found_papers:
+        return jsonify({"papers": []}), 200
+    
+    # return the found papers
+    return jsonify({"papers": found_papers}), 200
+    
 def generate_paper_recommendations(query, articles):
     """
     Generate structured recommendations for the most influential, relevant, and recent papers.
