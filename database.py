@@ -2,6 +2,8 @@ import arxiv
 from pinecone import Pinecone, ServerlessSpec
 import time
 import datetime
+import json
+from typing import Union
 
 API_KEY = r'pcsk_76Mmum_UpWTHBNSbtTD3SB33eDmZHHJRTKAMMhiJRMJ6QJv8CEfoCiuzr2FLogfTskwPuS'
 EMB_MODEL = 'multilingual-e5-large'
@@ -124,15 +126,20 @@ def search_database(query: str, max_results=5) -> list[Paper]:
     return papers
 
 
-def rerank_papers(query: str, papers: list[Paper], max_results=None) -> list[Paper]:
+def rerank_papers(query: str, papers: Union[list[Paper], list[object]], max_results: int =None, text_attr=lambda p: p.summary) -> Union[list[Paper], list[object]]:
     '''
     Rerank the papers based on the query
     Paper list may include old and new papers in any order
+    ---------------------------------
+    papers: list of Paper objects or list of any objects, which are summaries of the papers to be reranked
     max_results: default to be the length of papers (select all)
+    text_attr: extract the texts or summaries to be reranked from papers, depending on the data type. Default paper.summary
     '''
     if max_results is None:
         max_results = len(papers)
-    documents = [{'text': p.summary} for p in papers]
+    if len(papers) == 0:
+        raise ValueError('Paper list must be non-empty.')
+    documents = [{'text': text_attr(p)} for p in papers]
     result = pc.inference.rerank(
         model=RERANK_MODEL,
         query=query,
@@ -146,3 +153,34 @@ def rerank_papers(query: str, papers: list[Paper], max_results=None) -> list[Pap
     print('Token usage for reranking: ', result.usage, sep='')
     return [papers[i] for i in reranked_index]
 
+
+def export_local_database(database: dict, path = r'./articles_db.json'):
+    '''
+    Backup local database in JSON file.
+    '''
+    with open(path, 'w') as f:
+        json.dump(database, f)
+
+def load_local_database(path = r'./articles_db.json'):
+    '''
+    Load local JSON database.
+    '''
+    with open(path) as f: 
+        data = f.read()
+    return json.loads(data)
+
+def export_local_database_pinecone(database: dict):
+    '''
+    Backup local database in Pinecone.
+    Note: Vector embeddings will be re-computed by EMB_MODEL, and original embeddings will not be stored.
+    '''
+    ids = [list(index.list())[0]]
+    new_papers = []
+    for key, value in database.values():
+        if key.split('/')[-1] in ids:
+            continue
+        value['date'] = value['published_date']
+        del value['published_date']
+        new_papers.append(Paper.from_metadata(value))
+
+    upsert_data(new_papers)

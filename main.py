@@ -14,6 +14,7 @@ import faiss
 import dotenv
 import hashlib
 from urllib.parse import quote
+import database
 
 app = Flask(__name__)
 CORS(app)
@@ -113,6 +114,7 @@ def search():
     prioritize_recency = request.json.get('prioritize_recency', False)
     prioritize_citation = request.json.get('prioritize_citation', False)
     max_results = request.json.get('max_results', 10)
+    rerank = request.json.get('rerank', True)
     
     print(f"Query: {query}, Prioritize Recency: {prioritize_recency}, Prioritize Citation: {prioritize_citation}")
     
@@ -121,6 +123,8 @@ def search():
     
     # Get initial articles from arXiv
     articles = search_articles(query, max_results=max_results)
+    if rerank:
+        articles = database.rerank_papers(articles, max_results=max_results, text_attr=lambda p: p['summary'])
     
     # If prioritizing recency, sort by publication date
     if prioritize_recency:
@@ -399,6 +403,7 @@ def generate_paper_recommendations(query, articles):
 @app.route('/similar', methods=['POST'])
 def similar():
     query = request.json.get('query')
+    rerank = request.json.get('rerank', True)
     if not query:
         return jsonify({"error": "Query is required"}), 400
     # Encode the query to get its vector
@@ -406,6 +411,9 @@ def similar():
     # Search for similar articles in FAISS
     _, indices = index.search(np.array([query_vector], dtype=np.float32), k=5)
     similar_articles = [articles_db[list(articles_db.keys())[i]] for i in indices[0]]
+    if rerank:
+        similar_articles = database.rerank_papers(similar_articles, text_attr=lambda p: p['summary'])
+
     return jsonify(similar_articles)
 
 
