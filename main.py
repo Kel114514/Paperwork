@@ -124,7 +124,7 @@ def search():
     # Get initial articles from arXiv
     articles = search_articles(query, max_results=max_results)
     if rerank:
-        articles = database.rerank_papers(articles, max_results=max_results, text_attr=lambda p: p['summary'])
+        articles = database.rerank_papers(query=query, papers=articles, max_results=max_results, text_attr=lambda p: p['summary'])
     
     # If prioritizing recency, sort by publication date
     if prioritize_recency:
