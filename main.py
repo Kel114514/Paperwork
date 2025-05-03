@@ -412,7 +412,7 @@ def similar():
     _, indices = index.search(np.array([query_vector], dtype=np.float32), k=5)
     similar_articles = [articles_db[list(articles_db.keys())[i]] for i in indices[0]]
     if rerank:
-        similar_articles = database.rerank_papers(similar_articles, text_attr=lambda p: p['summary'])
+        similar_articles = database.rerank_papers(query=query, papers = similar_articles, text_attr=lambda p: p['summary'])
 
     return jsonify(similar_articles)
 
