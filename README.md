@@ -1,4 +1,8 @@
-# Project Name
+# Paperwork Usage Guide
+
+## Demo Video
+
+[Demo Video](https://cse.hkust.edu.hk/ug/fyp/posters/gallery/2024-2025/67_LZ1_Media.mp4) @HKUST FYP System
 
 ## Installation
 
