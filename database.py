@@ -5,7 +5,7 @@ import datetime
 import json
 from typing import Union
 
-API_KEY = r'pcsk_76Mmum_UpWTHBNSbtTD3SB33eDmZHHJRTKAMMhiJRMJ6QJv8CEfoCiuzr2FLogfTskwPuS'
+API_KEY = "YOUR_API_KEY"
 EMB_MODEL = 'multilingual-e5-large'
 RERANK_MODEL = "bge-reranker-v2-m3"
 
